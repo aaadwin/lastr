@@ -18,9 +18,9 @@ interface BarangItem {
   jumlah: number;
   keterangan: string;
   bidang_id: string;
+  merk?: string | null; // Kolom merk langsung berbentuk string
   bidang?: { nama_bidang?: string } | null;
   barang?: { nama_barang?: string } | null;
-  merk?: { merk?: string } | null;
   tahun?: { tahun?: string } | null;
   satuan?: { satuan?: string } | null;
   kondisi?: { kondisi?: string } | null;
@@ -43,6 +43,12 @@ export default function PimpinanDashboardPage() {
   const [activeTab, setActiveTab] = useState<string>('ALL'); // 'ALL' atau ID bidang
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ----------------------------------------------------
+  // STATE UNTUK SORTING
+  // ----------------------------------------------------
+  const [sortBy, setSortBy] = useState<string>('nama_barang'); // Opsi: 'nama_barang', 'nibar', 'jumlah', 'kondisi', 'merk', 'tahun'
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
   // 1. Cek Sesi User & Role Pimpinan
   useEffect(() => {
     const savedSession = localStorage.getItem('user_session');
@@ -55,7 +61,6 @@ export default function PimpinanDashboardPage() {
     try {
       const parsedUser = JSON.parse(savedSession);
 
-      // Pastikan role sesuai (misal: pimpinan / pimpinan_bidang / eksekutif)
       if (!parsedUser.role) {
         alert('Anda tidak memiliki akses ke halaman ini!');
         router.replace('/login');
@@ -72,15 +77,10 @@ export default function PimpinanDashboardPage() {
     }
   }, [router]);
 
-  // 2. Handler Logout Lengkap (Sama seperti halaman Admin)
+  // 2. Handler Logout
   const handleLogout = () => {
-    // 1. Hapus sesi di LocalStorage
     localStorage.removeItem('user_session');
-
-    // 2. Hapus Cookie agar Middleware memblokir akses secara instan
     document.cookie = 'user_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;';
-
-    // 3. Force replace ke login agar history browser terhapus
     window.location.replace('/login');
   };
 
@@ -98,7 +98,7 @@ export default function PimpinanDashboardPage() {
       if (errBidang) throw errBidang;
       setListBidang(dataBidang || []);
 
-      // Fetch Data Barang beserta Relasi
+      // Fetch Data Barang beserta Relasi (kolom merk diambil sebagai string)
       const { data: dataBarang, error: errBarang } = await supabase
         .from('data_barang')
         .select(`
@@ -110,9 +110,9 @@ export default function PimpinanDashboardPage() {
           jumlah,
           keterangan,
           bidang_id,
+          merk,
           bidang:bidang_id ( id_bidang, nama_bidang ),
           barang:barang_id ( nama_barang ),
-          merk:merk_id ( merk ),
           tahun:tahun_id ( tahun ),
           satuan:satuan_id ( satuan ),
           kondisi:kondisi_id ( kondisi )
@@ -138,7 +138,7 @@ export default function PimpinanDashboardPage() {
     const namaBarang = item.barang?.nama_barang?.toLowerCase() || '';
     const nibar = item.nibar?.toLowerCase() || '';
     const bidang = item.bidang?.nama_bidang?.toLowerCase() || '';
-    const merk = item.merk?.merk?.toLowerCase() || '';
+    const merk = item.merk?.toLowerCase() || '';
 
     const matchesSearch =
       namaBarang.includes(query) ||
@@ -147,6 +147,48 @@ export default function PimpinanDashboardPage() {
       merk.includes(query);
 
     return matchesTab && matchesSearch;
+  });
+
+  // ----------------------------------------------------
+  // LOGIKA SORTING BARANG
+  // ----------------------------------------------------
+  const sortedBarang = [...filteredBarang].sort((a, b) => {
+    let valueA: string | number = '';
+    let valueB: string | number = '';
+
+    switch (sortBy) {
+      case 'nama_barang':
+        valueA = a.barang?.nama_barang?.toLowerCase() || '';
+        valueB = b.barang?.nama_barang?.toLowerCase() || '';
+        break;
+      case 'nibar':
+        valueA = a.nibar?.toLowerCase() || '';
+        valueB = b.nibar?.toLowerCase() || '';
+        break;
+      case 'jumlah':
+        valueA = a.jumlah || 0;
+        valueB = b.jumlah || 0;
+        break;
+      case 'kondisi':
+        valueA = a.kondisi?.kondisi?.toLowerCase() || '';
+        valueB = b.kondisi?.kondisi?.toLowerCase() || '';
+        break;
+      case 'merk':
+        valueA = a.merk?.toLowerCase() || '';
+        valueB = b.merk?.toLowerCase() || '';
+        break;
+      case 'tahun':
+        valueA = a.tahun?.tahun || '';
+        valueB = b.tahun?.tahun || '';
+        break;
+      default:
+        valueA = a.barang?.nama_barang?.toLowerCase() || '';
+        valueB = b.barang?.nama_barang?.toLowerCase() || '';
+    }
+
+    if (valueA < valueB) return sortOrder === 'asc' ? -1 : 1;
+    if (valueA > valueB) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
   });
 
   // Total Unit Barang
@@ -181,7 +223,6 @@ export default function PimpinanDashboardPage() {
             <p className="text-xs text-gray-500">Monitoring rekapitulasi data barang di seluruh bidang & unit kerja</p>
           </div>
 
-          {/* Tombol Logout Sesuai Referensi Admin */}
           <button
             onClick={handleLogout}
             className="bg-red-500 hover:bg-red-600 text-white text-xs px-4 py-2 rounded transition font-semibold shadow-sm cursor-pointer"
@@ -230,14 +271,14 @@ export default function PimpinanDashboardPage() {
           })}
         </div>
 
-        {/* Kontrol Filter & Tabel Utama */}
+        {/* Kontrol Filter, Sorting & Tabel Utama */}
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 space-y-4">
           
-          {/* Navigasi Tab Bidang & Form Pencarian */}
-          <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 border-b pb-4">
+          {/* Navigasi Tab Bidang, Form Pencarian & Controls Sorting */}
+          <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 border-b pb-4">
             
             {/* Filter Tab Bidang */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-2 md:pb-0 scrollbar-thin">
+            <div className="flex items-center gap-1 overflow-x-auto pb-2 lg:pb-0 scrollbar-thin">
               <button
                 onClick={() => setActiveTab('ALL')}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition ${
@@ -266,15 +307,46 @@ export default function PimpinanDashboardPage() {
               })}
             </div>
 
-            {/* Form Pencarian */}
-            <div className="w-full md:w-64">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari barang, NIBAR, bidang..."
-                className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
-              />
+            {/* Form Pencarian & Controls Sorting */}
+            <div className="flex flex-col sm:flex-row items-center gap-2">
+              
+              {/* Dropdown Kategori Sorting */}
+              <div className="flex items-center gap-1 w-full sm:w-auto">
+                <span className="text-xs text-gray-500 whitespace-nowrap">Urutkan:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-500 bg-white text-gray-700 font-medium cursor-pointer"
+                >
+                  <option value="nama_barang">Nama Barang (A-Z)</option>
+                  <option value="nibar">NIBAR</option>
+                  <option value="jumlah">Jumlah Item</option>
+                  <option value="kondisi">Kondisi</option>
+                  <option value="merk">Merk</option>
+                  <option value="tahun">Tahun</option>
+                </select>
+
+                {/* Tombol Toggle Order (Asc/Desc) */}
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  title={sortOrder === 'asc' ? 'Urutan Naik (Ascending)' : 'Urutan Turun (Descending)'}
+                  className="p-1.5 border border-gray-300 rounded bg-gray-50 hover:bg-gray-100 text-xs font-semibold text-gray-700 transition px-2.5"
+                >
+                  {sortOrder === 'asc' ? '⬆️ ASC' : '⬇️ DESC'}
+                </button>
+              </div>
+
+              {/* Input Pencarian */}
+              <div className="w-full sm:w-56">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari barang, NIBAR, bidang..."
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-indigo-500 bg-white"
+                />
+              </div>
+
             </div>
 
           </div>
@@ -282,7 +354,7 @@ export default function PimpinanDashboardPage() {
           {/* Rincian Tabel Barang */}
           {loading ? (
             <div className="text-center py-8 text-gray-500 text-sm">Memuat data inventaris...</div>
-          ) : filteredBarang.length === 0 ? (
+          ) : sortedBarang.length === 0 ? (
             <div className="text-center py-8 text-gray-400 text-sm italic">
               Tidak ada data barang yang sesuai dengan filter/pencarian.
             </div>
@@ -302,7 +374,7 @@ export default function PimpinanDashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredBarang.map((item, index) => (
+                  {sortedBarang.map((item, index) => (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="p-2.5 text-gray-500">{index + 1}</td>
                       <td className="p-2.5 font-mono">
@@ -322,7 +394,7 @@ export default function PimpinanDashboardPage() {
                         </span>
                       </td>
                       <td className="p-2.5 text-gray-600">
-                        {item.merk?.merk || '-'} {item.tahun?.tahun ? `(${item.tahun.tahun})` : ''}
+                        {item.merk || '-'} {item.tahun?.tahun ? `(${item.tahun.tahun})` : ''}
                       </td>
                       <td className="p-2.5 text-center font-bold text-gray-800">
                         {item.jumlah || 0} {item.satuan?.satuan || ''}
