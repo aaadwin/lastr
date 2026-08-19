@@ -18,7 +18,7 @@ interface BarangItem {
   jumlah: number;
   keterangan: string;
   bidang_id: string;
-  merk?: string | null; // Kolom merk langsung berbentuk string
+  merk?: string | null;
   bidang?: { nama_bidang?: string } | null;
   barang?: { nama_barang?: string } | null;
   tahun?: { tahun?: string } | null;

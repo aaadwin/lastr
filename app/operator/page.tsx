@@ -33,7 +33,6 @@ interface DataBarangItem {
   } | null;
   barang?: { nama_barang?: string } | null;
   master_barang?: { nama_barang?: string } | null;
-  merk?: { merk?: string } | null;
   tahun?: { tahun?: string | number } | null;
   satuan?: { satuan?: string } | null;
   kondisi?: { kondisi?: string; nama_kondisi?: string } | null;
@@ -310,23 +309,23 @@ export default function OperatorBarangPage() {
       const filename = `KIR_${userBidangName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
       const options = {
-        margin: [8, 8, 8, 8],
-        filename: filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          windowWidth: 1280,
-        },
-        jsPDF: {
-          unit: 'mm',
-          format: 'a4',
-          orientation: 'landscape',
-        },
-      } as const;
+  margin: [8, 8, 8, 8] as [8, 8, 8, 8],
+  filename: filename,
+  image: { type: 'jpeg' as const, quality: 0.98 },
+  html2canvas: {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    windowWidth: 1280,
+  },
+  jsPDF: {
+    unit: 'mm',
+    format: 'a4',
+    orientation: 'landscape',
+  },
+};
 
-      await html2pdf().set(options).from(element).save();
+await html2pdf().set(options).from(element).save();
     } catch (error) {
       console.error('Gagal membuat PDF:', error);
       alert('Terjadi kesalahan saat mengunduh PDF.');

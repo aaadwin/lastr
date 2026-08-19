@@ -203,7 +203,7 @@ export default function ExportKirModal({ isOpen, onClose }: ExportKirModalProps)
         },
       };
 
-      await html2pdf().set(options).from(element).save();
+      await html2pdf().set(options as any).from(element).save();
     } catch (error) {
       console.error('Gagal membuat PDF:', error);
       alert('Terjadi kesalahan saat mengunduh PDF.');
