@@ -115,7 +115,7 @@ export default function ExportKirOperatorModal({ isOpen, onClose }: ExportKirOpe
           format: 'a4',
           orientation: 'landscape',
         },
-      } as const;
+      };
 
       await html2pdf().set(options).from(element).save();
     } catch (error) {

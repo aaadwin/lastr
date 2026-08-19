@@ -201,7 +201,7 @@ export default function ExportKirModal({ isOpen, onClose }: ExportKirModalProps)
           format: 'a4',
           orientation: 'landscape',
         },
-      } as const;
+      };
 
       await html2pdf().set(options).from(element).save();
     } catch (error) {
